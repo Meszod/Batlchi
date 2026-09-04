@@ -56,6 +56,9 @@ CREATE TABLE IF NOT EXISTS contests (
     start_time         REAL,
     end_time           REAL,
     status             TEXT DEFAULT 'active', -- scheduled/active/finished/cancelled
+    custom_text        TEXT,                   -- egasi kiritgan tanlov matni (ixtiyoriy)
+    media_type         TEXT,                   -- 'photo' | 'video' | 'animation' | NULL
+    media_file_id      TEXT,                   -- Telegram file_id (bitta media fayl)
     created_at         REAL
 );
 
@@ -156,6 +159,9 @@ class Database:
             "ALTER TABLE contests ADD COLUMN end_condition TEXT DEFAULT 'time'",
             "ALTER TABLE contests ADD COLUMN target_participants INTEGER",
             "ALTER TABLE contests ADD COLUMN publish_at REAL",
+            "ALTER TABLE contests ADD COLUMN custom_text TEXT",
+            "ALTER TABLE contests ADD COLUMN media_type TEXT",
+            "ALTER TABLE contests ADD COLUMN media_file_id TEXT",
         ):
             try:
                 await self._conn.execute(ddl)

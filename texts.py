@@ -45,6 +45,17 @@ ADMIN_RULES_PROMPT = (
 ADMIN_RULES_SAVED = "✅ Konkurs shartlari matni yangilandi."
 
 # ── Konkurs yaratish sizardi ──────────────────────────
+ASK_CAPTION = (
+    "🖊 <b>Tanlov matnini yuboring.</b>\n\n"
+    "Shuningdek, matn bilan birga rasm, video yoki GIF ham yuborishingiz mumkin — "
+    "buning uchun rasm/video/GIFni pastiga (caption) matningizni yozib yuboring.\n\n"
+    "❗️ Siz faqat bitta media fayldan foydalanishingiz mumkin.\n\n"
+    "Agar maxsus matn/media qo'shmoqchi bo'lmasangiz, pastdagi tugmani bosing 👇"
+)
+CAPTION_MEDIA_NO_TEXT = "❗️ Iltimos, rasm/video/GIF ostiga (caption) matn ham yozing."
+CAPTION_SAVED = "✅ Qabul qilindi — bu matn (va media) konkurs postida ishlatiladi."
+CAPTION_SKIPPED = "⏭ O'tkazib yuborildi — standart post matni ishlatiladi."
+
 ASK_TYPE = (
     "🎮 <b>Konkurs turini tanlang</b>\n\n"
     "🗳 <b>Ovoz to'plash</b> — ishtirokchilar ro'yxatdan o'tadi, boshqalar ularning "

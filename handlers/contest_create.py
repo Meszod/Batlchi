@@ -25,19 +25,21 @@ from database import db
 from keyboards import (
     kb_cancel, kb_type_select, kb_sponsor_step, kb_boost_step, kb_duration,
     kb_winners_count, kb_confirm, kb_join_button, kb_end_condition,
-    kb_target_count, kb_publish_timing, kb_schedule_presets,
+    kb_target_count, kb_publish_timing, kb_schedule_presets, kb_caption_skip,
 )
 from utils import (
     get_chat_from_forward, is_bot_admin_in_chat, is_user_admin_in_chat,
     get_chat_invite_link, format_duration,
 )
-from handlers.contest_join import schedule_contest_monitor, schedule_contest_publish, build_post_text
+from handlers.contest_join import (
+    schedule_contest_monitor, schedule_contest_publish, build_post_text, send_contest_post,
+)
 
 logger = logging.getLogger(__name__)
 
-(ASK_TYPE, ASK_CHAT, ASK_SPONSOR, ASK_BOOST, ASK_END_CONDITION, ASK_DURATION,
+(ASK_TYPE, ASK_CHAT, ASK_CAPTION, ASK_SPONSOR, ASK_BOOST, ASK_END_CONDITION, ASK_DURATION,
  ASK_DURATION_CUSTOM, ASK_TARGET_COUNT, ASK_TARGET_COUNT_CUSTOM, ASK_WINNERS,
- ASK_PUBLISH_TIMING, ASK_SCHEDULE_TIME, CONFIRM) = range(13)
+ ASK_PUBLISH_TIMING, ASK_SCHEDULE_TIME, CONFIRM) = range(14)
 
 
 def _reset_wizard(context: ContextTypes.DEFAULT_TYPE):
@@ -46,6 +48,9 @@ def _reset_wizard(context: ContextTypes.DEFAULT_TYPE):
         "chat_id": None,
         "chat_title": None,
         "chat_link": None,
+        "custom_text": None,
+        "media_type": None,
+        "media_file_id": None,
         "sponsors": [],
         "boost_chat_id": None,
         "boost_link": None,
@@ -110,6 +115,12 @@ async def on_chat_forward(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     w["chat_title"] = chat.title or chat.full_name or str(chat.id)
     w["chat_link"] = link
 
+    await msg.reply_text(texts.ASK_CAPTION, parse_mode="HTML", reply_markup=kb_caption_skip())
+    return ASK_CAPTION
+
+
+async def _proceed_to_sponsor_step(msg, context: ContextTypes.DEFAULT_TYPE) -> int:
+    w = context.user_data["wizard"]
     await msg.reply_text(
         texts.CHAT_CONFIRMED.format(
             title=w["chat_title"], max_n=config.MAX_SPONSOR_CHANNELS_PER_CONTEST
@@ -118,6 +129,46 @@ async def on_chat_forward(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         reply_markup=kb_sponsor_step(),
     )
     return ASK_SPONSOR
+
+
+async def on_caption_receive(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    msg = update.message
+    w = context.user_data["wizard"]
+
+    media_type, media_file_id, text = None, None, None
+    if msg.photo:
+        media_type, media_file_id, text = "photo", msg.photo[-1].file_id, msg.caption
+    elif msg.video:
+        media_type, media_file_id, text = "video", msg.video.file_id, msg.caption
+    elif msg.animation:
+        media_type, media_file_id, text = "animation", msg.animation.file_id, msg.caption
+    else:
+        text = msg.text
+
+    if media_type and not text:
+        await msg.reply_text(texts.CAPTION_MEDIA_NO_TEXT, reply_markup=kb_caption_skip())
+        return ASK_CAPTION
+    if not media_type and not text:
+        await msg.reply_text(texts.CAPTION_MEDIA_NO_TEXT, reply_markup=kb_caption_skip())
+        return ASK_CAPTION
+
+    w["custom_text"] = text
+    w["media_type"] = media_type
+    w["media_file_id"] = media_file_id
+
+    await msg.reply_text(texts.CAPTION_SAVED)
+    return await _proceed_to_sponsor_step(msg, context)
+
+
+async def on_caption_skip(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    query = update.callback_query
+    await query.answer(texts.CAPTION_SKIPPED)
+    w = context.user_data["wizard"]
+    w["custom_text"] = None
+    w["media_type"] = None
+    w["media_file_id"] = None
+    await query.edit_message_text(texts.CAPTION_SKIPPED)
+    return await _proceed_to_sponsor_step(query.message, context)
 
 
 async def on_sponsor_forward(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -497,6 +548,9 @@ async def on_confirm_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         start_time=start_time,
         end_time=end_time,
         status=status,
+        custom_text=w["custom_text"],
+        media_type=w["media_type"],
+        media_file_id=w["media_file_id"],
     )
 
     if is_scheduled:
@@ -515,8 +569,8 @@ async def on_confirm_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     contest["_required_channels"] = w["sponsors"] or (not is_pro)
     post_text = build_post_text(contest, count=0)
     try:
-        sent = await context.bot.send_message(
-            w["chat_id"], post_text, parse_mode="HTML",
+        sent = await send_contest_post(
+            context.bot, w["chat_id"], contest, post_text,
             reply_markup=kb_join_button(contest_id, w["type"], bool(w["require_boost"])),
         )
         await db.update_contest(contest_id, message_id=sent.message_id)
@@ -566,6 +620,14 @@ def register(app: Application):
             ASK_CHAT: [
                 MessageHandler(filters.FORWARDED & ~filters.COMMAND, on_chat_forward),
                 CallbackQueryHandler(on_wizard_cancel, pattern="^wizard_cancel$"),
+            ],
+            ASK_CAPTION: [
+                CallbackQueryHandler(on_caption_skip, pattern="^caption_skip$"),
+                CallbackQueryHandler(on_wizard_cancel, pattern="^wizard_cancel$"),
+                MessageHandler(
+                    (filters.TEXT | filters.PHOTO | filters.VIDEO | filters.ANIMATION) & ~filters.COMMAND,
+                    on_caption_receive,
+                ),
             ],
             ASK_SPONSOR: [
                 CallbackQueryHandler(on_sponsor_done, pattern="^sponsor_done$"),

@@ -23,6 +23,13 @@ def kb_cancel() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([[InlineKeyboardButton("❌ Bekor qilish", callback_data="wizard_cancel")]])
 
 
+def kb_caption_skip() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("⏭ O'tkazib yuborish", callback_data="caption_skip")],
+        [InlineKeyboardButton("❌ Bekor qilish", callback_data="wizard_cancel")],
+    ])
+
+
 def kb_type_select() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("🗳 Ovoz to'plash", callback_data="ctype_vote")],

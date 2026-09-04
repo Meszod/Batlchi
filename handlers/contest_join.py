@@ -218,27 +218,60 @@ def build_post_text(contest: dict, count: int) -> str:
     ctype = contest.get("type", "stars")
 
     if ctype == "vote":
-        return texts.VOTE_POST_TEMPLATE.format(
+        body = texts.VOTE_POST_TEMPLATE.format(
             winners=contest["winners_count"], end_time=end_dt, count=count, rules=rules,
         )
-    if ctype == "referral":
-        return texts.REFERRAL_POST_TEMPLATE.format(
+    elif ctype == "referral":
+        body = texts.REFERRAL_POST_TEMPLATE.format(
             winners=contest["winners_count"], end_time=end_dt, count=count, rules=rules,
             referral_points=config.REFERRAL_POINTS,
         )
-    if ctype == "random":
-        return texts.RANDOM_POST_TEMPLATE.format(
+    elif ctype == "random":
+        body = texts.RANDOM_POST_TEMPLATE.format(
             winners=contest["winners_count"], end_time=end_dt, count=count, rules=rules,
         )
-    if ctype == "media":
-        return texts.MEDIA_POST_TEMPLATE.format(
+    elif ctype == "media":
+        body = texts.MEDIA_POST_TEMPLATE.format(
             winners=contest["winners_count"], end_time=end_dt, count=count, rules=rules,
         )
-    return texts.STARS_POST_TEMPLATE.format(
-        winners=contest["winners_count"], end_time=end_dt, count=count, rules=rules,
-        stars_points=config.STARS_VOTE_POINTS, reaction_points=config.REACTION_POINTS,
-        boost_points=config.BOOST_POINTS,
-    )
+    else:
+        body = texts.STARS_POST_TEMPLATE.format(
+            winners=contest["winners_count"], end_time=end_dt, count=count, rules=rules,
+            stars_points=config.STARS_VOTE_POINTS, reaction_points=config.REACTION_POINTS,
+            boost_points=config.BOOST_POINTS,
+        )
+
+    custom_text = contest.get("custom_text")
+    return f"{custom_text}\n\n{body}" if custom_text else body
+
+
+async def send_contest_post(bot, chat_id: int, contest: dict, text: str, reply_markup):
+    """Konkurs egasi maxsus rasm/video/GIF biriktirgan bo'lsa — shu media bilan,
+    aks holda oddiy matn xabar sifatida yuboradi."""
+    media_type = contest.get("media_type")
+    media_file_id = contest.get("media_file_id")
+    caption = text[:1024]  # Telegram caption limiti
+    if media_type == "photo" and media_file_id:
+        return await bot.send_photo(chat_id, media_file_id, caption=caption, parse_mode="HTML", reply_markup=reply_markup)
+    if media_type == "video" and media_file_id:
+        return await bot.send_video(chat_id, media_file_id, caption=caption, parse_mode="HTML", reply_markup=reply_markup)
+    if media_type == "animation" and media_file_id:
+        return await bot.send_animation(chat_id, media_file_id, caption=caption, parse_mode="HTML", reply_markup=reply_markup)
+    return await bot.send_message(chat_id, text, parse_mode="HTML", reply_markup=reply_markup)
+
+
+async def edit_contest_post(bot, chat_id: int, message_id: int, contest: dict, text: str, reply_markup):
+    """Media bilan joylangan postlarda caption'ni, oddiy postlarda matnni yangilaydi."""
+    if contest.get("media_type") and contest.get("media_file_id"):
+        await bot.edit_message_caption(
+            chat_id=chat_id, message_id=message_id, caption=text[:1024],
+            parse_mode="HTML", reply_markup=reply_markup,
+        )
+    else:
+        await bot.edit_message_text(
+            chat_id=chat_id, message_id=message_id, text=text,
+            parse_mode="HTML", reply_markup=reply_markup,
+        )
 
 
 async def _refresh_post(context: ContextTypes.DEFAULT_TYPE, contest_id: int):
@@ -253,11 +286,8 @@ async def _refresh_post(context: ContextTypes.DEFAULT_TYPE, contest_id: int):
         new_text = build_post_text(contest, count)
         ctype = contest.get("type", "stars")
 
-        await context.bot.edit_message_text(
-            chat_id=contest["chat_id"],
-            message_id=contest["message_id"],
-            text=new_text,
-            parse_mode="HTML",
+        await edit_contest_post(
+            context.bot, contest["chat_id"], contest["message_id"], contest, new_text,
             reply_markup=kb_join_button(contest_id, ctype, bool(contest.get("require_boost"))),
         )
     except Exception as e:
@@ -427,8 +457,8 @@ async def _publish_tick(context: ContextTypes.DEFAULT_TYPE):
 
     try:
         from keyboards import kb_join_button
-        sent = await context.bot.send_message(
-            contest["chat_id"], post_text, parse_mode="HTML",
+        sent = await send_contest_post(
+            context.bot, contest["chat_id"], contest, post_text,
             reply_markup=kb_join_button(contest_id, contest.get("type", "stars"), bool(contest.get("require_boost"))),
         )
     except Exception as e:

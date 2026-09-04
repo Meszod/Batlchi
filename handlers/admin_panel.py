@@ -27,7 +27,7 @@ from utils import get_chat_from_forward, is_bot_admin_in_chat, get_chat_invite_l
 logger = logging.getLogger(__name__)
 
 WAIT_ADD_CHANNEL, WAIT_BAN_ID, WAIT_UNBAN_ID, WAIT_WARN_ID, WAIT_INFO_ID = range(5)
-WAIT_BROADCAST, WAIT_GRANT_PRO, WAIT_REVOKE_PRO = range(5, 8)
+WAIT_BROADCAST, WAIT_GRANT_PRO, WAIT_REVOKE_PRO, WAIT_RULES = range(5, 9)
 
 
 def is_super_admin(user_id: int) -> bool:
@@ -251,6 +251,27 @@ async def on_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 # ══════════════════════════════════════════════════════
+# KONKURS SHARTLARI
+# ══════════════════════════════════════════════════════
+async def on_rules_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    current = await db.get_setting("contest_rules", texts.DEFAULT_CONTEST_RULES)
+    await query.edit_message_text(current, parse_mode="HTML")
+    await context.bot.send_message(
+        query.from_user.id, texts.ADMIN_RULES_PROMPT, parse_mode="HTML", reply_markup=kb_back("adm_back"),
+    )
+    return WAIT_RULES
+
+
+async def on_rules_receive(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await db.set_setting("contest_rules", update.message.text)
+    await update.message.reply_text(texts.ADMIN_RULES_SAVED)
+    await update.message.reply_text(texts.ADMIN_MAIN, parse_mode="HTML", reply_markup=kb_admin_main())
+    return ConversationHandler.END
+
+
+# ══════════════════════════════════════════════════════
 # BROADCAST
 # ══════════════════════════════════════════════════════
 async def on_broadcast_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -375,6 +396,7 @@ def register(app: Application):
             CallbackQueryHandler(on_broadcast_start, pattern="^adm_broadcast$"),
             CallbackQueryHandler(on_grant_pro_start, pattern="^adm_grantpro$"),
             CallbackQueryHandler(on_revoke_pro_start, pattern="^adm_revokepro$"),
+            CallbackQueryHandler(on_rules_start, pattern="^adm_rules$"),
         ],
         states={
             WAIT_ADD_CHANNEL: [MessageHandler(filters.FORWARDED & ~filters.COMMAND, on_add_channel_receive)],
@@ -385,6 +407,7 @@ def register(app: Application):
             WAIT_BROADCAST: [MessageHandler(filters.TEXT & ~filters.COMMAND, on_broadcast_receive)],
             WAIT_GRANT_PRO: [MessageHandler(filters.TEXT & ~filters.COMMAND, on_grant_pro_receive)],
             WAIT_REVOKE_PRO: [MessageHandler(filters.TEXT & ~filters.COMMAND, on_revoke_pro_receive)],
+            WAIT_RULES: [MessageHandler(filters.TEXT & ~filters.COMMAND, on_rules_receive)],
         },
         fallbacks=[CommandHandler("cancel", on_cancel)],
         name="admin_panel_conv",

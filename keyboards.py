@@ -12,7 +12,7 @@ def kb_main_menu(is_admin: bool = False) -> ReplyKeyboardMarkup:
     rows = [
         ["➕ Konkurs qilish"],
         ["📋 Mening konkurslarim", "💎 PRO"],
-        ["ℹ️ Yordam"],
+        ["📄 Konkurs shartlari", "ℹ️ Yordam"],
     ]
     if is_admin:
         rows.append(["🔧 Admin Panel"])
@@ -265,6 +265,7 @@ def kb_admin_main() -> InlineKeyboardMarkup:
          InlineKeyboardButton("💎 PRO boshqaruvi", callback_data="adm_pro")],
         [InlineKeyboardButton("📊 Statistika", callback_data="adm_stats"),
          InlineKeyboardButton("📢 Broadcast", callback_data="adm_broadcast")],
+        [InlineKeyboardButton("📄 Konkurs shartlarini o'zgartirish", callback_data="adm_rules")],
     ])
 
 

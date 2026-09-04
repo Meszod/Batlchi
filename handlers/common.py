@@ -61,6 +61,11 @@ async def on_help_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await cmd_help(update, context)
 
 
+async def on_rules_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    rules = await db.get_setting("contest_rules", texts.DEFAULT_CONTEST_RULES)
+    await update.message.reply_text(rules, parse_mode="HTML")
+
+
 async def on_unknown_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Reply-menyudagi tugmalar bosilganda, agar boshqa handler ushlamasa shu yerga tushadi."""
     return  # boshqa ConversationHandlerlar ushlaydi; bu yerda hech narsa qilmaymiz
@@ -70,3 +75,4 @@ def register(app: Application):
     app.add_handler(CommandHandler("start", cmd_start))
     app.add_handler(CommandHandler("help", cmd_help))
     app.add_handler(MessageHandler(filters.Regex("^ℹ️ Yordam$"), on_help_button))
+    app.add_handler(MessageHandler(filters.Regex("^📄 Konkurs shartlari$"), on_rules_button))

@@ -22,6 +22,28 @@ HELP_TEXT = (
     "majburiy global kanallarsiz ishlashingiz mumkin."
 )
 
+# ── Konkurs shartlari (admin tomonidan /admin panelidan o'zgartiriladi) ─
+DEFAULT_CONTEST_RULES = (
+    "📄 <b>Konkurs shartlari</b>\n\n"
+    "1️⃣ Konkursga faqat botda ro'yxatdan o'tgan va barcha majburiy kanallarga "
+    "a'zo bo'lgan ishtirokchilar qatnasha oladi.\n"
+    "2️⃣ Har bir konkursning o'z turi va shartlari bor — batafsil ma'lumot "
+    "konkurs e'lonida ko'rsatiladi.\n"
+    "3️⃣ G'olib(lar) konkurs turiga qarab (ovoz, ball, referal yoki qur'a) "
+    "avtomatik aniqlanadi va e'lon qilinadi.\n"
+    "4️⃣ Firibgarlik, soxta akkauntlar yoki qoidabuzarlik aniqlansa, ishtirokchi "
+    "konkursdan chetlashtirilishi mumkin.\n"
+    "5️⃣ Sovrin va uni topshirish shartlari konkurs egasi (kanal/guruh admini) "
+    "tomonidan belgilanadi — savollar bo'lsa konkurs egasiga murojaat qiling."
+)
+
+ADMIN_RULES_PROMPT = (
+    "📄 <b>Konkurs shartlari matnini yuboring:</b>\n"
+    "(HTML formatlash mumkin: &lt;b&gt;, &lt;i&gt;, va h.k.)\n\n"
+    "Bekor qilish uchun /cancel"
+)
+ADMIN_RULES_SAVED = "✅ Konkurs shartlari matni yangilandi."
+
 # ── Konkurs yaratish sizardi ──────────────────────────
 ASK_TYPE = (
     "🎮 <b>Konkurs turini tanlang</b>\n\n"

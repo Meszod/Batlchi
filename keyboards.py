@@ -173,7 +173,10 @@ def kb_media_gallery(contest_id: int, submissions: list, page: int, total_pages:
     return InlineKeyboardMarkup(rows)
 
 
-def kb_vote_candidates(contest_id: int, candidates: list, page: int, total_pages: int) -> InlineKeyboardMarkup:
+def kb_vote_candidates(
+    contest_id: int, candidates: list, page: int, total_pages: int,
+    channel_url: str = None,
+) -> InlineKeyboardMarkup:
     rows = []
     for c in candidates:
         name = c.get("display_name", f"ID{c['user_id']}")
@@ -190,6 +193,8 @@ def kb_vote_candidates(contest_id: int, candidates: list, page: int, total_pages
     if nav:
         rows.append(nav)
     rows.append([InlineKeyboardButton("🔙 Yopish", callback_data=f"vclose_{contest_id}")])
+    if channel_url:
+        rows.append([InlineKeyboardButton("📢 Kanalga o'tish", url=channel_url)])
     return InlineKeyboardMarkup(rows)
 
 

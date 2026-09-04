@@ -20,6 +20,18 @@ from keyboards import kb_vote_candidates
 logger = logging.getLogger(__name__)
 
 
+def _channel_link(chat_id: int, message_id: int):
+    """Konkurs postiga to'g'ridan-to'g'ri olib boruvchi havola (kanal ichidagi post)."""
+    if not chat_id or not message_id:
+        return None
+    cid = str(chat_id)
+    if cid.startswith("-100"):
+        cid = cid[4:]
+    elif cid.startswith("-"):
+        cid = cid[1:]
+    return f"https://t.me/c/{cid}/{message_id}"
+
+
 async def _candidate_display_name(user_id: int) -> str:
     u = await db.get_user(user_id)
     if u and u.get("username"):
@@ -61,7 +73,8 @@ async def on_vote_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.edit_message_text(texts.VOTE_LIST_EMPTY)
         return
 
-    kb = kb_vote_candidates(contest_id, candidates, page, total_pages)
+    channel_url = _channel_link(contest["chat_id"], contest["message_id"])
+    kb = kb_vote_candidates(contest_id, candidates, page, total_pages, channel_url)
 
     if in_dm:
         await query.answer()
@@ -108,7 +121,8 @@ async def on_vote_cast(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # ro'yxatni yangilangan ovozlar bilan qayta chizamiz (0-sahifadan boshlab)
     try:
         candidates, total_pages, page = await _build_candidates_list(contest_id, 0)
-        kb = kb_vote_candidates(contest_id, candidates, page, total_pages)
+        channel_url = _channel_link(contest["chat_id"], contest["message_id"])
+        kb = kb_vote_candidates(contest_id, candidates, page, total_pages, channel_url)
         await query.edit_message_reply_markup(reply_markup=kb)
     except BadRequest:
         pass

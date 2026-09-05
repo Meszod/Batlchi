@@ -319,6 +319,18 @@ JOIN_MISSING_CHANNELS = (
     "❌ Qatnashish uchun quyidagi kanal(lar)ga obuna bo'ling, so'ng tugmani "
     "qaytadan bosing:\n\n{channels}"
 )
+JOIN_MISSING_SENT_DM = "❌ Avval kanal(lar)ga a'zo bo'ling — havolalar botdan shaxsiy xabarda yuborildi 👇"
+JOIN_MISSING_NEED_START = (
+    "❌ Qatnashish uchun quyidagi kanal(lar)ga a'zo bo'ling:\n\n{channels}\n\n"
+    "⚠️ Havolalarni tugma orqali olish uchun avval @{username} ga /start yozing, "
+    "so'ng qaytadan urinib ko'ring."
+)
+JOIN_MISSING_DM_HEADER = (
+    "❌ <b>Konkursda qatnashish uchun quyidagi kanal(lar)ga a'zo bo'ling:</b>\n\n"
+    "Barchasiga a'zo bo'lgach, pastdagi <b>✅ Tekshirish</b> tugmasini bosing."
+)
+JOIN_RECHECK_STILL_MISSING = "❌ Hali ham quyidagi kanal(lar)ga a'zo emassiz. A'zo bo'lib, qaytadan bosing."
+JOIN_RECHECK_SUCCESS = "✅ Rahmat! Siz konkursga muvaffaqiyatli qo'shildingiz 🍀"
 
 BOOST_NOT_JOINED = "❌ Avval konkursga qo'shiling, so'ng boost qiling!"
 BOOST_ALREADY = "ℹ️ Siz allaqachon boost uchun ball olgansiz!"

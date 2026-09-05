@@ -19,6 +19,16 @@ def kb_main_menu(is_admin: bool = False) -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(rows, resize_keyboard=True)
 
 
+def kb_missing_channels(contest_id: int, channels: list) -> InlineKeyboardMarkup:
+    rows = []
+    for ch in channels[:8]:
+        link = ch.get("link") or ""
+        if link:
+            rows.append([InlineKeyboardButton(f"📢 {ch['title']}", url=link)])
+    rows.append([InlineKeyboardButton("✅ Tekshirish", callback_data=f"jrecheck_{contest_id}")])
+    return InlineKeyboardMarkup(rows)
+
+
 def kb_cancel() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([[InlineKeyboardButton("❌ Bekor qilish", callback_data="wizard_cancel")]])
 

@@ -16,7 +16,7 @@ from telegram.ext import Application, CallbackQueryHandler, MessageReactionHandl
 import config
 import texts
 from database import db
-from keyboards import kb_join_button
+from keyboards import kb_join_button, kb_missing_channels
 from utils import (
     check_user_membership, check_user_boosted, gather_required_channels, format_remaining,
 )
@@ -24,43 +24,10 @@ from utils import (
 logger = logging.getLogger(__name__)
 
 
-async def on_join_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    user = update.effective_user
-    contest_id = int(query.data.split("_")[1])
-
-    if await db.is_banned(user.id):
-        await query.answer(texts.JOIN_BANNED, show_alert=True)
-        return
-
-    contest = await db.get_contest(contest_id)
-    if not contest or contest["status"] != "active":
-        await query.answer(texts.JOIN_FINISHED, show_alert=True)
-        return
-
-    if await db.is_participant(contest_id, user.id):
-        await query.answer(texts.JOIN_ALREADY, show_alert=True)
-        return
-
-    # ── faqat majburiy kanallar tekshiriladi (boost EMAS — u ixtiyoriy bonus) ──
-    required = await gather_required_channels(db, contest)
-    missing = []
-    for ch in required:
-        ok = await check_user_membership(context, ch["chat_id"], user.id)
-        if not ok:
-            missing.append(ch)
-
-    if missing:
-        names = "\n".join(f"• {c['title']}" for c in missing[:8])
-        await query.answer(
-            texts.JOIN_MISSING_CHANNELS.format(channels=names)[:200], show_alert=True
-        )
-        return
-
-    # ── qo'shish ──────────────────────────────────────────
+async def _finalize_join(context: ContextTypes.DEFAULT_TYPE, contest: dict, contest_id: int, user):
+    """Barcha majburiy kanallarga a'zolik tasdiqlangandan keyingi qo'shilish logikasi."""
     await db.add_participant(contest_id, user.id)
     await db.upsert_user(user.id, user.username or "", user.first_name or "")
-    await query.answer(texts.JOIN_SUCCESS, show_alert=True)
 
     # 👥 Referal orqali kelgan bo'lsa — taklif qilganga ball beramiz
     pending = context.user_data.pop("pending_referral", None)
@@ -90,6 +57,100 @@ async def on_join_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
         current_count = await db.count_participants(contest_id)
         if current_count >= contest["target_participants"]:
             await draw_and_announce_winners(context, contest_id, reason="ishtirokchilar soni to'ldi")
+
+
+async def on_join_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    user = update.effective_user
+    contest_id = int(query.data.split("_")[1])
+
+    if await db.is_banned(user.id):
+        await query.answer(texts.JOIN_BANNED, show_alert=True)
+        return
+
+    contest = await db.get_contest(contest_id)
+    if not contest or contest["status"] != "active":
+        await query.answer(texts.JOIN_FINISHED, show_alert=True)
+        return
+
+    if await db.is_participant(contest_id, user.id):
+        await query.answer(texts.JOIN_ALREADY, show_alert=True)
+        return
+
+    # ── faqat majburiy kanallar tekshiriladi (boost EMAS — u ixtiyoriy bonus) ──
+    required = await gather_required_channels(db, contest)
+    missing = []
+    for ch in required:
+        ok = await check_user_membership(context, ch["chat_id"], user.id)
+        if not ok:
+            missing.append(ch)
+
+    if missing:
+        # Native alert matn-only bo'lgani uchun (link bosilmaydi) — havolalarni
+        # foydalanuvchiga shaxsiy xabar (DM) orqali, tugma ko'rinishida yuboramiz.
+        try:
+            await context.bot.send_message(
+                user.id, texts.JOIN_MISSING_DM_HEADER, parse_mode="HTML",
+                reply_markup=kb_missing_channels(contest_id, missing),
+            )
+            await query.answer(texts.JOIN_MISSING_SENT_DM, show_alert=True)
+        except Exception:
+            me = await context.bot.get_me()
+            names = "\n".join(f"• {c['title']}" for c in missing[:8])
+            await query.answer(
+                texts.JOIN_MISSING_NEED_START.format(channels=names, username=me.username)[:200],
+                show_alert=True,
+            )
+        return
+
+    await _finalize_join(context, contest, contest_id, user)
+    await query.answer(texts.JOIN_SUCCESS, show_alert=True)
+
+
+async def on_join_recheck(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """DM'dagi '✅ Tekshirish' tugmasi — kanallarga a'zolikni qayta tekshiradi."""
+    query = update.callback_query
+    user = update.effective_user
+    contest_id = int(query.data.split("_")[1])
+
+    if await db.is_banned(user.id):
+        await query.answer(texts.JOIN_BANNED, show_alert=True)
+        return
+
+    contest = await db.get_contest(contest_id)
+    if not contest or contest["status"] != "active":
+        await query.answer(texts.JOIN_FINISHED, show_alert=True)
+        return
+
+    if await db.is_participant(contest_id, user.id):
+        await query.answer(texts.JOIN_ALREADY, show_alert=True)
+        try:
+            await query.edit_message_text(texts.JOIN_ALREADY)
+        except Exception:
+            pass
+        return
+
+    required = await gather_required_channels(db, contest)
+    missing = []
+    for ch in required:
+        ok = await check_user_membership(context, ch["chat_id"], user.id)
+        if not ok:
+            missing.append(ch)
+
+    if missing:
+        await query.answer(texts.JOIN_RECHECK_STILL_MISSING, show_alert=True)
+        try:
+            await query.edit_message_reply_markup(reply_markup=kb_missing_channels(contest_id, missing))
+        except Exception:
+            pass
+        return
+
+    await _finalize_join(context, contest, contest_id, user)
+    await query.answer(texts.JOIN_RECHECK_SUCCESS, show_alert=True)
+    try:
+        await query.edit_message_text(texts.JOIN_RECHECK_SUCCESS)
+    except Exception:
+        pass
 
 
 async def on_boost_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -507,6 +568,7 @@ async def resume_scheduled_publishes(application: Application):
 
 def register(app: Application):
     app.add_handler(CallbackQueryHandler(on_join_click, pattern="^cjoin_"))
+    app.add_handler(CallbackQueryHandler(on_join_recheck, pattern="^jrecheck_\\d+$"))
     app.add_handler(CallbackQueryHandler(on_boost_click, pattern="^cboost_"))
     app.add_handler(CallbackQueryHandler(on_stars_click, pattern="^cstars_"))
     app.add_handler(CallbackQueryHandler(on_leaderboard_click, pattern="^clead_"))

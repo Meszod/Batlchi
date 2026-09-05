@@ -42,7 +42,10 @@ async def on_referral_link(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         await query.answer("📩 Taklif havolangiz shaxsiy xabarda yuborildi!")
     except Exception:
-        await query.answer(url=f"https://t.me/{me.username}")
+        await query.answer(
+            "❌ Avval pastdagi \"🤖 Botni ishga tushirish\" tugmasini bosing, so'ng qaytadan urinib ko'ring.",
+            show_alert=True,
+        )
 
 
 def register(app: Application):

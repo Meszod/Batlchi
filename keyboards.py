@@ -162,6 +162,10 @@ def kb_join_button(contest_id: int, contest_type: str = "stars", boost_enabled: 
             )])
     if contest_type != "random":
         rows.append([InlineKeyboardButton("📊 Reyting", callback_data=f"clead_{contest_id}")])
+    if config.BOT_USERNAME:
+        rows.append([InlineKeyboardButton(
+            "🤖 Botni ishga tushirish", url=f"https://t.me/{config.BOT_USERNAME}?start=jc_{contest_id}"
+        )])
     return InlineKeyboardMarkup(rows)
 
 

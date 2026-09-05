@@ -29,6 +29,8 @@ logger = logging.getLogger(__name__)
 
 async def post_init(application: Application):
     await db.connect(config.DB_PATH)
+    me = await application.bot.get_me()
+    config.BOT_USERNAME = me.username
     await resume_all_monitors(application)
     await resume_scheduled_publishes(application)
     logger.info("Bot to'liq ishga tushdi ✅")
@@ -36,6 +38,17 @@ async def post_init(application: Application):
 
 async def post_shutdown(application: Application):
     await db.close()
+
+
+async def on_error(update, context):
+    """Global xato ushlagich — hech qanday handler ushlamagan xato bo'lsa,
+    bot yiqilib qolmasin va foydalanuvchi 'osilib qolmasin' uchun."""
+    logger.error("Kutilmagan xato:", exc_info=context.error)
+    try:
+        if isinstance(update, object) and getattr(update, "callback_query", None):
+            await update.callback_query.answer("❌ Xatolik yuz berdi, qaytadan urinib ko'ring.", show_alert=True)
+    except Exception:
+        pass
 
 
 def main():
@@ -53,6 +66,7 @@ def main():
     )
 
     register_all(app)
+    app.add_error_handler(on_error)
 
     logger.info("Polling boshlandi...")
     app.run_polling(

@@ -62,3 +62,6 @@ PRO_PLANS = {
 
 # ── Boshqa ──────────────────────────────────────────────
 LOG_FILE = os.getenv("LOG_FILE", "bot.log")
+
+# ── Runtime'da to'ldiriladi (main.py post_init) ─────────
+BOT_USERNAME = None

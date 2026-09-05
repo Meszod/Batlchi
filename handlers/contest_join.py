@@ -97,9 +97,13 @@ async def on_join_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.answer(texts.JOIN_MISSING_SENT_DM, show_alert=True)
         except Exception:
             # DM yozib bo'lmadi (foydalanuvchi botni ishga tushirmagan) —
-            # alertga matn yozish o'rniga to'g'ridan-to'g'ri botga o'tkazamiz.
+            # pastdagi "🤖 Botni ishga tushirish" tugmasidan foydalanishini so'raymiz.
             me = await context.bot.get_me()
-            await query.answer(url=f"https://t.me/{me.username}?start=jc_{contest_id}")
+            await query.answer(
+                f"❌ Avval pastdagi \"🤖 Botni ishga tushirish\" tugmasini bosing, "
+                f"so'ng qaytadan urinib ko'ring.",
+                show_alert=True,
+            )
         return
 
     await _finalize_join(context, contest, contest_id, user)
@@ -432,13 +436,18 @@ async def _monitor_tick(context: ContextTypes.DEFAULT_TYPE):
     contest_id = context.job.data["contest_id"]
     contest = await db.get_contest(contest_id)
     if not contest or contest["status"] != "active":
-        context.job.schedule_removal()
+        try:
+            context.job.schedule_removal()
+        except Exception:
+            pass
         return
 
     remaining = contest["end_time"] - time.time()
     if remaining <= 0:
         await draw_and_announce_winners(context, contest_id, reason="vaqt tugadi")
-        context.job.schedule_removal()
+        # ❗️ draw_and_announce_winners ichida unschedule_contest_monitor() chaqiriladi va
+        # bu job allaqachon shu yerdan (nomi bo'yicha) o'chiriladi — shuning uchun bu yerda
+        # context.job.schedule_removal() ni QAYTA chaqirmaymiz (aks holda "JobLookupError" beradi).
         return
 
     # Real-vaqtda a'zolikni yo'qotganlarni chiqarib tashlash
@@ -485,7 +494,10 @@ def unschedule_contest_monitor(application: Application, contest_id: int):
     if jq is None:
         return
     for job in jq.get_jobs_by_name(f"contest_monitor_{contest_id}"):
-        job.schedule_removal()
+        try:
+            job.schedule_removal()
+        except Exception:
+            pass
 
 
 async def resume_all_monitors(application: Application):

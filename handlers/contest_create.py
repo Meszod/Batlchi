@@ -29,7 +29,7 @@ from keyboards import (
 )
 from utils import (
     get_chat_from_forward, is_bot_admin_in_chat, is_user_admin_in_chat,
-    get_chat_invite_link, format_duration,
+    get_chat_invite_link, format_duration, format_dt, TASHKENT_TZ,
 )
 from handlers.contest_join import (
     schedule_contest_monitor, schedule_contest_publish, build_post_text, send_contest_post,
@@ -430,12 +430,16 @@ async def on_schedule_custom_prompt(update: Update, context: ContextTypes.DEFAUL
 async def on_schedule_custom_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     txt = update.message.text.strip()
     try:
-        dt = datetime.strptime(txt, "%d.%m.%Y %H:%M")
+        dt_naive = datetime.strptime(txt, "%d.%m.%Y %H:%M")
     except ValueError:
         await update.message.reply_text(texts.SCHEDULE_TIME_INVALID, parse_mode="HTML", reply_markup=kb_cancel())
         return ASK_SCHEDULE_TIME
 
-    if dt <= datetime.now():
+    # Foydalanuvchi vaqtni O'zbekiston (Toshkent, UTC+5) vaqtida kiritadi —
+    # buni to'g'ri UTC timestamp'ga aylantiramiz (server UTC'da ishlaydi).
+    dt = dt_naive.replace(tzinfo=TASHKENT_TZ)
+
+    if dt <= datetime.now(TASHKENT_TZ):
         await update.message.reply_text(texts.SCHEDULE_TIME_INVALID, parse_mode="HTML", reply_markup=kb_cancel())
         return ASK_SCHEDULE_TIME
 
@@ -454,8 +458,7 @@ def _format_end_info(w: dict) -> str:
 def _format_publish_info(w: dict) -> str:
     if not w["publish_at"]:
         return "Hozir"
-    dt = datetime.fromtimestamp(w["publish_at"])
-    return dt.strftime("%d.%m.%Y %H:%M")
+    return format_dt(w["publish_at"])
 
 
 async def _show_confirm_summary(update: Update, context: ContextTypes.DEFAULT_TYPE, via_callback: bool) -> int:

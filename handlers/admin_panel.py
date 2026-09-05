@@ -22,7 +22,7 @@ from database import db
 from keyboards import (
     kb_admin_main, kb_admin_channels, kb_admin_users, kb_admin_pro, kb_back, kb_main_menu,
 )
-from utils import get_chat_from_forward, is_bot_admin_in_chat, get_chat_invite_link
+from utils import get_chat_from_forward, is_bot_admin_in_chat, get_chat_invite_link, format_dt
 
 logger = logging.getLogger(__name__)
 
@@ -340,7 +340,7 @@ async def on_grant_pro_receive(update: Update, context: ContextTypes.DEFAULT_TYP
     until = await db.set_pro(uid, days)
     await update.message.reply_text(
         f"✅ {uid} foydalanuvchiga {days} kunlik PRO berildi.\n"
-        f"Tugash: {time.strftime('%d.%m.%Y %H:%M', time.localtime(until))}"
+        f"Tugash: {format_dt(until)}"
     )
     try:
         await context.bot.send_message(uid, texts.PRO_PURCHASED.format(days=days), parse_mode="HTML")

@@ -116,6 +116,13 @@ CREATE TABLE IF NOT EXISTS participants (
     PRIMARY KEY (contest_id, user_id)
 );
 
+CREATE TABLE IF NOT EXISTS pending_referrals (
+    user_id     INTEGER PRIMARY KEY,
+    contest_id  INTEGER,
+    referrer_id INTEGER,
+    created_at  REAL
+);
+
 CREATE TABLE IF NOT EXISTS winners (
     contest_id  INTEGER,
     user_id     INTEGER,
@@ -516,6 +523,22 @@ class Database:
     # ══════════════════════════════════════════════════
     # 👥 REFERAL TIZIMI
     # ══════════════════════════════════════════════════
+    async def set_pending_referral(self, user_id: int, contest_id: int, referrer_id: int):
+        """Kim kimni taklif qilganini DOIMIY saqlaydi (bot qayta ishga tushsa ham yo'qolmasin)."""
+        await self.execute(
+            "INSERT OR REPLACE INTO pending_referrals (user_id, contest_id, referrer_id, created_at) "
+            "VALUES (?,?,?,?)",
+            (user_id, contest_id, referrer_id, time.time()),
+        )
+
+    async def pop_pending_referral(self, user_id: int) -> Optional[dict]:
+        row = await self.fetchone(
+            "SELECT * FROM pending_referrals WHERE user_id=?", (user_id,)
+        )
+        if row:
+            await self.execute("DELETE FROM pending_referrals WHERE user_id=?", (user_id,))
+        return dict(row) if row else None
+
     async def register_referral(self, contest_id: int, referred_user_id: int, referrer_id: int) -> bool:
         """Yangi taklif qilinganni ro'yxatga oladi va referrerga ball beradi.
         Bir kishi bir konkursda faqat 1 marta 'taklif qilingan' bo'la oladi (PK)."""

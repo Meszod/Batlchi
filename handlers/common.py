@@ -34,9 +34,9 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if len(parts) == 3 and parts[1].isdigit() and parts[2].isdigit():
                 contest_id, referrer_id = int(parts[1]), int(parts[2])
                 if referrer_id != user.id:
-                    context.user_data["pending_referral"] = {
-                        "contest_id": contest_id, "referrer_id": referrer_id,
-                    }
+                    # DB'ga yozamiz (user_data emas) — bot qayta ishga tushsa ham
+                    # (masalan yangilanish/deploy vaqtida) taklif hisobga olinishi yo'qolmasin.
+                    await db.set_pending_referral(user.id, contest_id, referrer_id)
                     referrer = await db.get_user(referrer_id)
                     ref_name = (
                         f"@{referrer['username']}" if referrer and referrer.get("username")
@@ -46,11 +46,44 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         texts.REFERRAL_WELCOME_NUDGE.format(name=ref_name), parse_mode="HTML"
                     )
 
+        # 🎉 "Konkursga qo'shilish" tugmasidan DM ochib bo'lmagani uchun kelgan
+        # deep-link: /start jc_<contest_id> — majburiy kanallarni darhol ko'rsatamiz.
+        elif payload.startswith("jc_"):
+            parts = payload.split("_")
+            if len(parts) == 2 and parts[1].isdigit():
+                await _send_missing_channels_check(update, context, int(parts[1]), user)
+
     await update.message.reply_text(
         texts.WELCOME.format(name=user.first_name or "foydalanuvchi"),
         parse_mode="HTML",
         reply_markup=kb_main_menu(is_admin=is_super_admin(user.id)),
     )
+
+
+async def _send_missing_channels_check(update: Update, context: ContextTypes.DEFAULT_TYPE, contest_id: int, user):
+    from utils import check_user_membership, gather_required_channels
+    from keyboards import kb_missing_channels
+
+    contest = await db.get_contest(contest_id)
+    if not contest or contest["status"] != "active":
+        return
+    required = await gather_required_channels(db, contest)
+    missing = []
+    for ch in required:
+        ok = await check_user_membership(context, ch["chat_id"], user.id)
+        if not ok:
+            missing.append(ch)
+
+    if missing:
+        await update.message.reply_text(
+            texts.JOIN_MISSING_DM_HEADER, parse_mode="HTML",
+            reply_markup=kb_missing_channels(contest_id, missing),
+        )
+    else:
+        await update.message.reply_text(
+            "✅ Siz barcha shart bo'lgan kanal(lar)ga a'zosiz.\n"
+            "Konkurs postidagi \"🎉 Konkursga qo'shilish\" tugmasini yana bir bor bosing."
+        )
 
 
 async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE):

@@ -88,11 +88,7 @@ async def on_vote_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.answer("📩 Nomzodlar ro'yxati sizga shaxsiy xabarda yuborildi!")
     except Forbidden:
         me = await context.bot.get_me()
-        await query.answer(
-            f"❌ Avval botni ishga tushiring: @{me.username} ga /start yozing, "
-            f"so'ng qaytadan urinib ko'ring.",
-            show_alert=True,
-        )
+        await query.answer(url=f"https://t.me/{me.username}")
 
 
 async def on_vote_cast(update: Update, context: ContextTypes.DEFAULT_TYPE):

@@ -19,6 +19,7 @@ import config
 import texts
 from database import db
 from keyboards import kb_pro_plans
+from utils import format_dt
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +28,7 @@ async def on_pro_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     if await db.is_pro(user_id):
         u = await db.get_user(user_id)
-        until = time.strftime("%d.%m.%Y %H:%M", time.localtime(u["pro_until"]))
+        until = format_dt(u["pro_until"])
         await update.message.reply_text(
             texts.PRO_ALREADY.format(until=until), parse_mode="HTML", reply_markup=kb_pro_plans()
         )

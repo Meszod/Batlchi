@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """Yordamchi funksiyalar: vaqt formatlash, a'zolikni tekshirish, chat helperlar."""
 import logging
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 
 from telegram import Chat, ChatMember
 from telegram.error import BadRequest, Forbidden
@@ -10,6 +10,10 @@ from telegram.ext import ContextTypes
 import config
 
 logger = logging.getLogger(__name__)
+
+# Server (Railway) odatda UTC vaqtda ishlaydi — foydalanuvchilarga har doim
+# O'zbekiston vaqtida (UTC+5) ko'rsatish uchun shu tayin timezone ishlatiladi.
+TASHKENT_TZ = timezone(timedelta(hours=5))
 
 
 def format_duration(minutes: int) -> str:
@@ -39,7 +43,10 @@ def format_remaining(seconds: float) -> str:
 
 
 def format_dt(ts: float) -> str:
-    return datetime.fromtimestamp(ts).strftime("%d.%m.%Y %H:%M")
+    """Unix timestamp'ni O'zbekiston (Toshkent, UTC+5) vaqtida formatlaydi."""
+    if not ts:
+        return "-"
+    return datetime.fromtimestamp(ts, tz=TASHKENT_TZ).strftime("%d.%m.%Y %H:%M")
 
 
 async def get_chat_from_forward(update_message) -> Chat | None:

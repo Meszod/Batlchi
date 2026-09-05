@@ -18,7 +18,7 @@ import texts
 from database import db
 from keyboards import kb_join_button, kb_missing_channels
 from utils import (
-    check_user_membership, check_user_boosted, gather_required_channels, format_remaining,
+    check_user_membership, check_user_boosted, gather_required_channels, format_remaining, format_dt,
 )
 
 logger = logging.getLogger(__name__)
@@ -30,7 +30,8 @@ async def _finalize_join(context: ContextTypes.DEFAULT_TYPE, contest: dict, cont
     await db.upsert_user(user.id, user.username or "", user.first_name or "")
 
     # 👥 Referal orqali kelgan bo'lsa — taklif qilganga ball beramiz
-    pending = context.user_data.pop("pending_referral", None)
+    # (DB'dan o'qiymiz — bot qayta ishga tushgan bo'lsa ham yo'qolmaydi)
+    pending = await db.pop_pending_referral(user.id)
     if pending and pending.get("contest_id") == contest_id and contest.get("type") == "referral":
         credited = await db.register_referral(contest_id, user.id, pending["referrer_id"])
         if credited:
@@ -95,12 +96,10 @@ async def on_join_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
             await query.answer(texts.JOIN_MISSING_SENT_DM, show_alert=True)
         except Exception:
+            # DM yozib bo'lmadi (foydalanuvchi botni ishga tushirmagan) —
+            # alertga matn yozish o'rniga to'g'ridan-to'g'ri botga o'tkazamiz.
             me = await context.bot.get_me()
-            names = "\n".join(f"• {c['title']}" for c in missing[:8])
-            await query.answer(
-                texts.JOIN_MISSING_NEED_START.format(channels=names, username=me.username)[:200],
-                show_alert=True,
-            )
+            await query.answer(url=f"https://t.me/{me.username}?start=jc_{contest_id}")
         return
 
     await _finalize_join(context, contest, contest_id, user)
@@ -274,7 +273,7 @@ async def on_leaderboard_click(update: Update, context: ContextTypes.DEFAULT_TYP
 def build_post_text(contest: dict, count: int) -> str:
     """Konkurs turi bo'yicha post matnini quradi — yaratishda ham,
     yangilashda ham shu funksiya ishlatiladi (bir xillik uchun)."""
-    end_dt = time.strftime("%d.%m.%Y %H:%M", time.localtime(contest["end_time"]))
+    end_dt = format_dt(contest["end_time"])
     rules = texts.RULES_LINE if contest.get("_required_channels") else ""
     ctype = contest.get("type", "stars")
 
